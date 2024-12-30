@@ -1,6 +1,7 @@
 from datetime import datetime
 from servicios.reporte_service import ReporteService
 from DAO.producto_dao import ProductoDAO
+from DTO.producto_dto import ProductoDTO
 
 def mostrar_menu():
     print("\n=== SISTEMA DE GESTIÓN DE INVENTARIO SANTA CLARA ===")

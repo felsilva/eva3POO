@@ -13,9 +13,9 @@ class Conexion:
         if not self._connection:
             self._connection = pymysql.connect(
                 host='127.0.0.1',
-                user='controlador',
-                password='Inacap@controlador2024.',
-                database='talca_pets',
+                user='root',
+                password='Inacap@2024.',
+                database='santa_clara_mantenedor_db',
                 cursorclass=pymysql.cursors.DictCursor
             )
 
