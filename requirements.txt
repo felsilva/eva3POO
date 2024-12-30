@@ -1,0 +1,4 @@
+pymysql
+bcrypt
+requests
+progressbar2

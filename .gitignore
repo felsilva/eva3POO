@@ -1,0 +1,49 @@
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Entornos virtuales de Python
+venv/
+env/
+.env/
+.venv/
+ENV/
+
+# Archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribución y empaquetado
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Archivos de prueba y cobertura
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.pytest_cache/
+.mypy_cache/
+
+# IDEs y editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# Archivos de entorno
+.env
+.env.local
+*.env
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Archivos de registro
+*.log
+
