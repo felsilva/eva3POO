@@ -1,141 +1,141 @@
-# Proyecto evaluación 3 asignatura programación orientada a objetos segura 
-## Integrantes:
-- José González 
-- Victor Mondaca
-- Felipe Silva
-
-# Tema 3: App para tienda de accesorios para mascotas Talca Pets
+# Sistema de Gestión de Inventario Santa Clara
 
 ## Descripción
-Aplicación computacional en Python para gestionar una tienda virtual de venta de productos para mascota llamada **Comercial Santa Clara**. Los usuarios pueden agregar, visualizar, actualizar y eliminar información sobre los accesorios para mascotas.
+Sistema de gestión de inventario desarrollado para automatizar y optimizar el control de stock, movimientos de productos y generación de reportes. Implementa una arquitectura DAO/DTO con autenticación segura y manejo eficiente de datos.
+
+## Características Principales
+- Control en tiempo real del inventario
+- Gestión de entradas y salidas de productos
+- Sistema de alertas para stock bajo
+- Generación de reportes en múltiples formatos
+- Autenticación segura con bcrypt
+- Control de acceso basado en roles
+- Interfaz de consola intuitiva
 
 ## Requisitos del Sistema
 - Python 3.8 o superior
-- MySQL 8.0 o superior
-- Conexión a Internet (para obtener el precio del dólar)
+- MySQL 5.7 o superior
+- Dependencias Python (ver requirements.txt)
 
 ## Instalación
 
 1. Clonar el repositorio:
 ```bash
 git clone [URL_DEL_REPOSITORIO]
-cd [NOMBRE_DEL_DIRECTORIO]
+cd sistema-inventario
 ```
 
-2. Crear un entorno virtual e activarlo:
+2. Crear y activar entorno virtual:
 ```bash
 python -m venv venv
-source venv/bin/activate  # En Linux/Mac
-venv\Scripts\activate     # En Windows
+source venv/bin/activate  # En Windows: venv\Scripts\activate
 ```
-# Dependencias Principales 
 
-- **pymysql**: Para conexión con MySQL
-- **bcrypt**: Para manejar encriptación de datos
-- **requests**: Para realizar solicitudes HTTP y tener acceso a APIs
-- **progressbar2**: Para simular barra de carga (NO ES OBLIGATORIA)
-
-3. Instalar las dependencias:
+3. Instalar dependencias:
 ```bash
 pip install -r requirements.txt
 ```
 
-
 4. Configurar la base de datos:
 - Crear una base de datos MySQL
-- Ejecutar el script `database.sql` para crear las tablas necesarias
-- Modificar las credenciales de conexión en `DAO/conexion.py` según tu configuración
+- Ejecutar el script `database.sql`
+- Configurar las credenciales en el archivo de conexión
 
 ## Estructura del Proyecto
-
 ```
-.
-├── DAO/                    # Data Access Objects
-│   ├── conexion.py        # Conexión a la base de datos
-│   ├── accesorio_dao.py   # Operaciones CRUD para accesorios
-│   ├── tipo_dao.py        # Operaciones CRUD para tipos
-│   └── usuario_dao.py     # Operaciones CRUD para usuarios
-├── DTO/                    # Data Transfer Objects
-│   ├── accesorio_dto.py   # Modelo de accesorio
-│   ├── tipo_dto.py        # Modelo de tipo
-│   └── usuario_dto.py     # Modelo de usuario
-├── database.sql           # Script de creación de base de datos
-├── requirements.txt       # Dependencias del proyecto
-└── main.py               # Punto de entrada de la aplicación
+sistema-inventario/
+├── DAO/                    # Capa de acceso a datos
+│   ├── conexion.py        # Gestión de conexiones a BD
+│   ├── producto_dao.py    # Operaciones CRUD productos
+│   └── usuario_dao.py     # Gestión de usuarios
+├── DTO/                    # Objetos de transferencia de datos
+│   ├── producto_dto.py    # DTO de productos
+│   └── usuario_dto.py     # DTO de usuarios
+├── servicios/             # Lógica de negocio
+│   └── reporte_service.py # Generación de reportes
+├── database.sql           # Esquema de la base de datos
+├── main.py               # Punto de entrada
+└── requirements.txt      # Dependencias del proyecto
 ```
 
-## Uso
+## Funcionalidades
 
-1. Ejecutar la aplicación:
+### Gestión de Usuarios
+- Registro de nuevos usuarios
+- Autenticación segura con contraseñas hasheadas
+- Roles de usuario (admin/usuario)
+- Cambio de contraseñas
+- Validaciones de datos
+
+### Gestión de Productos
+- Alta, baja y modificación de productos
+- Control de stock
+- Registro de entradas y salidas
+- Historial de movimientos
+- Alertas de stock bajo
+
+### Reportes
+- Generación de reportes de movimientos
+- Exportación simulada a Excel y PDF
+- Filtros por fecha
+- Totales y resúmenes
+
+## Seguridad
+- Contraseñas hasheadas con bcrypt
+- Validación de datos de entrada
+- Control de acceso por roles
+- Protección contra SQL injection
+- Manejo seguro de sesiones
+
+## Base de Datos
+El sistema utiliza MySQL con las siguientes tablas principales:
+- usuarios: Gestión de usuarios y autenticación
+- productos: Catálogo de productos
+- entradas_inventario: Registro de entradas
+- salidas_inventario: Registro de salidas
+- alertas_inventario: Configuración de alertas
+
+## Uso del Sistema
+
+### Inicio de Sesión
 ```bash
 python main.py
 ```
+1. Seleccionar "Iniciar Sesión"
+2. Ingresar credenciales
 
-2. Registrar un usuario nuevo o iniciar sesión si ya tiene una cuenta.
+### Registro de Usuario
+1. Seleccionar "Registrar Usuario"
+2. Completar información requerida:
+   - Nombre de usuario (mín. 4 caracteres)
+   - Contraseña (mín. 8 caracteres)
+   - Datos personales
+   - Rol (admin/usuario)
 
-3. Una vez autenticado, podrá:
-   - Ingresar nuevos accesorios
-   - Mostrar accesorios existentes
-   - Modificar accesorios
-   - Eliminar accesorios
+### Operaciones Principales
+1. Gestión de Productos
+   - Listar productos
+   - Agregar producto
+   - Actualizar producto
+2. Movimientos de Inventario
+   - Registrar entradas
+   - Registrar salidas
+3. Control de Stock
+   - Verificar stock bajo
+   - Alertas automáticas
+4. Reportes
+   - Generar reportes por período
+   - Visualizar en diferentes formatos
 
-### Funcionalidades Principales
+## Contribución
+Para contribuir al proyecto:
+1. Fork del repositorio
+2. Crear rama para nueva funcionalidad
+3. Commit con mensajes descriptivos
+4. Push a la rama
+5. Crear Pull Request
 
-1. **Gestión de Usuarios**
-   - Registro de nuevos usuarios
-   - Inicio de sesión seguro con contraseñas hasheadas
-
-2. **Gestión de Accesorios**
-   - Agregar nuevos accesorios con conversión automática de precios (CLP a USD)
-   - Visualizar todos los accesorios
-   - Buscar accesorios por ID o nombre
-   - Filtrar accesorios por rango de precio, stock o edad recomendada
-   - Modificar información de accesorios existentes
-   - Eliminar accesorios
-
-3. **Características Especiales**
-   - Conversión automática de precios de CLP a USD usando API de indicadores financieros
-   - Interfaz de usuario amigable con menús claros
-   - Validación de datos de entrada
-   - Manejo seguro de contraseñas con bcrypt
-
-## Tablas de la Base de Datos
-
-### **tipo**
-- `id_tipo` (PK)
-- `nombre`
-- `descripcion`
-
-### **accesorio**
-- `id_accesorio` (PK)
-- `nombre`
-- `precio_dolar`
-- `especie`
-- `descripcion`
-- `stock`
-- `peso`
-- `edad_recomendada`
-- `tipo_id` (FK)
-
-### **usuarios**
-- `id_usuario` (PK)
-- `username` (UNIQUE)
-- `password_hash`
-- `nombres`
-- `apellidos`
-- `email`
-- `tipo_usuario`
-- `fecha_registro`
-
-## Reglas de Negocio
-- Un accesorio pertenece a un tipo
-- Un tipo está asociado a muchos accesorios
-- Los precios se ingresan en pesos chilenos y se convierten automáticamente a dólares
-- Las contraseñas se almacenan de forma segura usando bcrypt
-
-## Notas Importantes
-- Los nombres de las tablas están en minúsculas y sin acentos
-- El campo `password_hash` es VARCHAR(120) para almacenar el hash de la contraseña
-- Se requiere conexión a Internet para obtener el precio del dólar en tiempo real
+## Licencia
+Este proyecto está bajo la Licencia MIT. Ver archivo LICENSE para más detalles.
 
 
