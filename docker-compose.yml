@@ -4,7 +4,7 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_DATABASE: talca_pets
+      MYSQL_DATABASE: santa_clara_mantenedor_db
       MYSQL_ROOT_PASSWORD: Inacap@2024.
       SERVICE_TAGS: dev
       SERVICE_NAME: mysql

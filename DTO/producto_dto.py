@@ -4,7 +4,8 @@ Implementa validaciones y métodos de utilidad para el manejo de productos.
 """
 
 class ProductoDTO:
-    def __init__(self, id=None, nombre=None, descripcion=None, precio=None, cantidad_en_stock=None, categoria_id=None):
+    def __init__(self, id=None, nombre=None, descripcion=None, precio=None, 
+                 cantidad_en_stock=None, categoria_id=None):
         self._id = id
         self._nombre = nombre
         self._descripcion = descripcion

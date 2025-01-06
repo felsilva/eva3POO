@@ -106,7 +106,7 @@ class ReporteService:
             
             # Agregar pie de página
             print("\nNotas:")
-            print("- Los valores están expresados en la moneda local")
+            print("- Los valores están expresados en pesos.")
             print("- El stock actual representa el inventario al momento de la generación del reporte")
             print("- Las entradas y salidas corresponden al período especificado")
             

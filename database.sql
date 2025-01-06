@@ -15,25 +15,39 @@ CREATE TABLE usuarios (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE TABLE productos (
+CREATE TABLE roles_permisos (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL,
+    rol VARCHAR(50) NOT NULL,
+    permiso VARCHAR(100) NOT NULL,
     descripcion TEXT,
-    precio DECIMAL(10, 2) NOT NULL,
-    cantidad_en_stock INT NOT NULL DEFAULT 0
-) ENGINE=InnoDB;
-
-CREATE TABLE proveedores (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL,
-    contacto VARCHAR(255),
-    direccion TEXT
+    UNIQUE KEY uk_rol_permiso (rol, permiso)
 ) ENGINE=InnoDB;
 
 CREATE TABLE categorias_productos (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
     descripcion TEXT
+) ENGINE=InnoDB;
+
+CREATE TABLE productos (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    precio DECIMAL(10, 2) NOT NULL,
+    cantidad_en_stock INT NOT NULL DEFAULT 0,
+    categoria_id BIGINT,
+    CONSTRAINT fk_producto_categoria 
+    FOREIGN KEY (categoria_id) REFERENCES categorias_productos(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE proveedores (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    contacto VARCHAR(255),
+    direccion TEXT,
+    telefono VARCHAR(20),
+    email VARCHAR(100)
 ) ENGINE=InnoDB;
 
 -- Tablas con dependencias
@@ -43,10 +57,14 @@ CREATE TABLE entradas_inventario (
     cantidad INT NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     usuario_id BIGINT NOT NULL,
+    proveedor_id BIGINT,
+    precio_unitario DECIMAL(10, 2),
     CONSTRAINT fk_entrada_producto FOREIGN KEY (producto_id) 
         REFERENCES productos(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_entrada_usuario FOREIGN KEY (usuario_id) 
-        REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE
+        REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_entrada_proveedor FOREIGN KEY (proveedor_id)
+        REFERENCES proveedores(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE salidas_inventario (
@@ -55,6 +73,7 @@ CREATE TABLE salidas_inventario (
     cantidad INT NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     usuario_id BIGINT NOT NULL,
+    motivo VARCHAR(255),
     CONSTRAINT fk_salida_producto FOREIGN KEY (producto_id) 
         REFERENCES productos(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_salida_usuario FOREIGN KEY (usuario_id) 
@@ -65,27 +84,38 @@ CREATE TABLE alertas_inventario (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     producto_id BIGINT NOT NULL,
     nivel_alerta INT NOT NULL,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_id BIGINT,
     CONSTRAINT fk_alerta_producto FOREIGN KEY (producto_id) 
-        REFERENCES productos(id) ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES productos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_alerta_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE historial_precios (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     producto_id BIGINT NOT NULL,
-    precio DECIMAL(10, 2) NOT NULL,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    precio_anterior DECIMAL(10, 2) NOT NULL,
+    precio_nuevo DECIMAL(10, 2) NOT NULL,
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_id BIGINT,
     CONSTRAINT fk_historial_producto FOREIGN KEY (producto_id) 
-        REFERENCES productos(id) ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES productos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_historial_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE pedidos (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     proveedor_id BIGINT NOT NULL,
     fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    estado VARCHAR(50) NOT NULL,
+    fecha_entrega_estimada DATE,
+    estado ENUM('pendiente', 'en_proceso', 'entregado', 'cancelado') NOT NULL DEFAULT 'pendiente',
+    usuario_id BIGINT,
     CONSTRAINT fk_pedido_proveedor FOREIGN KEY (proveedor_id) 
-        REFERENCES proveedores(id) ON DELETE RESTRICT ON UPDATE CASCADE
+        REFERENCES proveedores(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_pedido_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE detalles_pedidos (
@@ -94,36 +124,44 @@ CREATE TABLE detalles_pedidos (
     producto_id BIGINT NOT NULL,
     cantidad INT NOT NULL,
     precio_unitario DECIMAL(10, 2) NOT NULL,
+    estado ENUM('pendiente', 'recibido', 'cancelado') NOT NULL DEFAULT 'pendiente',
     CONSTRAINT fk_detalle_pedido FOREIGN KEY (pedido_id) 
         REFERENCES pedidos(id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_detalle_producto FOREIGN KEY (producto_id) 
         REFERENCES productos(id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE roles_permisos (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    rol VARCHAR(50) NOT NULL,
-    permiso VARCHAR(50) NOT NULL
-) ENGINE=InnoDB;
-
 -- Índices para optimizar consultas
 CREATE INDEX idx_usuarios_username ON usuarios(username);
 CREATE INDEX idx_usuarios_email ON usuarios(email);
 CREATE INDEX idx_productos_nombre ON productos(nombre);
+CREATE INDEX idx_productos_categoria ON productos(categoria_id);
+CREATE INDEX idx_proveedores_nombre ON proveedores(nombre);
+CREATE INDEX idx_categorias_nombre ON categorias_productos(nombre);
 CREATE INDEX idx_entradas_fecha ON entradas_inventario(fecha);
 CREATE INDEX idx_salidas_fecha ON salidas_inventario(fecha);
 CREATE INDEX idx_pedidos_fecha ON pedidos(fecha_pedido);
-CREATE INDEX idx_historial_precios_fecha ON historial_precios(fecha);
+CREATE INDEX idx_pedidos_estado ON pedidos(estado);
+CREATE INDEX idx_historial_fecha ON historial_precios(fecha_cambio);
 
 -- Insertar roles y permisos básicos
-INSERT INTO roles_permisos (rol, permiso) VALUES
-('admin', 'gestionar_usuarios'),
-('admin', 'gestionar_productos'),
-('admin', 'gestionar_inventario'),
-('admin', 'generar_reportes'),
-('usuario', 'ver_productos'),
-('usuario', 'registrar_movimientos'),
-('usuario', 'ver_reportes');
+INSERT INTO roles_permisos (rol, permiso, descripcion) VALUES
+('admin', 'gestionar_usuarios', 'Permite crear, modificar y gestionar usuarios del sistema'),
+('admin', 'gestionar_productos', 'Permite la gestión completa del catálogo de productos'),
+('admin', 'gestionar_inventario', 'Permite gestionar el inventario y sus movimientos'),
+('admin', 'gestionar_proveedores', 'Permite administrar proveedores y pedidos'),
+('admin', 'generar_reportes', 'Permite generar todos los tipos de reportes'),
+('admin', 'configurar_sistema', 'Permite modificar configuraciones del sistema'),
+('usuario', 'ver_productos', 'Permite ver el catálogo de productos'),
+('usuario', 'registrar_movimientos', 'Permite registrar entradas y salidas de inventario'),
+('usuario', 'ver_reportes', 'Permite ver reportes básicos del sistema'),
+('usuario', 'ver_proveedores', 'Permite consultar información de proveedores');
+
+-- Insertar categorías predefinidas
+INSERT INTO categorias_productos (nombre, descripcion) VALUES
+('General', 'Categoría general de productos'),
+('Materiales', 'Materiales y suministros'),
+('Herramientas', 'Herramientas y equipos');
 
 -- Crear usuario administrador por defecto
 -- Contraseña: admin123

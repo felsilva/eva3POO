@@ -121,7 +121,7 @@ def iniciar_sesion(usuario_dao):
             return None
     except Exception as e:
         print(f"Error al iniciar sesión: {str(e)}")
-        return None
+    return None
 
 def mostrar_menu():
     """Muestra el menú principal del sistema."""
@@ -171,7 +171,8 @@ def menu_productos(producto_dao):
             print("1. Listar productos")
             print("2. Agregar producto")
             print("3. Actualizar producto")
-            print("4. Volver al menú principal")
+            print("4. Eliminar producto")
+            print("5. Volver al menú principal")
             opcion = input("Seleccione una opción: ")
 
             if opcion == "1":
@@ -184,7 +185,7 @@ def menu_productos(producto_dao):
                 print("-" * 50)
                 for p in productos:
                     print(f"{p.id:2d} | {p.nombre[:20]:20} | {p.cantidad_en_stock:5d} | ${p.precio:8.2f}")
-            
+                
             elif opcion == "2":
                 nombre = input("Nombre del producto: ").strip()
                 if not nombre:
@@ -213,24 +214,71 @@ def menu_productos(producto_dao):
                 id_producto = validar_entrada_numerica("ID del producto a actualizar: ", 'int')
                 if id_producto is None:
                     continue
+                    
                 producto = producto_dao.obtener_por_id(id_producto)
-                if producto:
-                    nombre = input(f"Nombre ({producto.nombre}): ").strip()
-                    if nombre:
-                        producto.nombre = nombre
-                    descripcion = input(f"Descripción ({producto.descripcion}): ")
-                    if descripcion:
-                        producto.descripcion = descripcion
-                    precio = validar_entrada_numerica(f"Precio ({producto.precio}): ")
-                    if precio is not None and precio > 0:
+                if not producto:
+                    print("Producto no encontrado.")
+                    continue
+                    
+                print(f"\nActualizando producto: {producto.nombre}")
+                print("(Presione Enter para mantener el valor actual)")
+                
+                nombre = input(f"Nombre [{producto.nombre}]: ").strip()
+                descripcion = input(f"Descripción [{producto.descripcion or 'Sin descripción'}]: ").strip()
+                precio_str = input(f"Precio [{producto.precio}]: ").strip()
+                
+                if nombre:
+                    producto.nombre = nombre
+                if descripcion:
+                    producto.descripcion = descripcion
+                if precio_str:
+                    try:
+                        precio = float(precio_str)
+                        if precio <= 0:
+                            print("El precio debe ser mayor que 0.")
+                            continue
                         producto.precio = precio
+                    except ValueError:
+                        print("Precio inválido.")
+                        continue
+                
+                try:
                     producto_dao.actualizar(producto)
                     print("Producto actualizado exitosamente!")
-                else:
-                    print("Producto no encontrado!")
-            
+                except Exception as e:
+                    print(f"Error al actualizar el producto: {str(e)}")
+
             elif opcion == "4":
+                id_producto = validar_entrada_numerica("ID del producto a eliminar: ", 'int')
+                if id_producto is None:
+                    continue
+                
+                producto = producto_dao.obtener_por_id(id_producto)
+                if not producto:
+                    print("Producto no encontrado.")
+                    continue
+                
+                print(f"\nProducto a eliminar: {producto.nombre}")
+                print(f"Stock actual: {producto.cantidad_en_stock}")
+                print(f"Precio actual: ${producto.precio:,.2f}")
+                
+                confirmacion = input("\n¿Está seguro que desea eliminar este producto? (s/n): ").strip().lower()
+                if confirmacion != 's':
+                    print("Operación cancelada.")
+                    continue
+                
+                try:
+                    producto_dao.eliminar(id_producto)
+                    print("Producto eliminado exitosamente!")
+                except ValueError as e:
+                    print(f"Error: {str(e)}")
+                except Exception as e:
+                    print(f"Error al eliminar el producto: {str(e)}")
+                
+            elif opcion == "5":
                 break
+            else:
+                print("Opción no válida.")
                 
         except Exception as e:
             print(f"Error: {str(e)}")
@@ -255,7 +303,7 @@ def menu_reportes(reporte_service):
                 
                 if datetime.strptime(fecha_inicio, '%Y-%m-%d') > datetime.strptime(fecha_fin, '%Y-%m-%d'):
                     print("La fecha de inicio debe ser anterior a la fecha fin.")
-                    continue
+                continue
                 
                 if opcion == "1":
                     reporte_service.simular_reporte_excel(fecha_inicio, fecha_fin)
@@ -298,7 +346,7 @@ def main():
                             if cantidad is None or cantidad <= 0:
                                 print("La cantidad debe ser mayor que 0.")
                                 continue
-                            producto_dao.registrar_movimiento(id_producto, cantidad, "entrada")
+                            producto_dao.registrar_movimiento(id_producto, cantidad, "entrada", usuario_actual.id)
                             print("Entrada registrada exitosamente!")
                         
                         elif opcion == "3":
@@ -309,7 +357,7 @@ def main():
                             if cantidad is None or cantidad <= 0:
                                 print("La cantidad debe ser mayor que 0.")
                                 continue
-                            producto_dao.registrar_movimiento(id_producto, cantidad, "salida")
+                            producto_dao.registrar_movimiento(id_producto, cantidad, "salida", usuario_actual.id)
                             print("Salida registrada exitosamente!")
                         
                         elif opcion == "4":
