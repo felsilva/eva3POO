@@ -84,7 +84,7 @@ CREATE TABLE alertas_inventario (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     producto_id BIGINT NOT NULL,
     nivel_alerta INT NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     usuario_id BIGINT,
     CONSTRAINT fk_alerta_producto FOREIGN KEY (producto_id) 
         REFERENCES productos(id) ON DELETE CASCADE ON UPDATE CASCADE,
