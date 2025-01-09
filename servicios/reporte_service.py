@@ -148,7 +148,7 @@ class ReporteService:
             return False
 
     def generar_reporte_alertas(self):
-        """Genera un reporte de productos con alertas de stock bajo."""
+        """Genera un reporte detallado de productos con alertas de stock bajo."""
         try:
             productos_bajo_stock = self.producto_dao.verificar_stock_bajo()
             
@@ -160,13 +160,34 @@ class ReporteService:
                 return True
             
             print("\nProductos que requieren reposición:")
-            print("-" * 60)
+            print("=" * 100)
+            
             for p in productos_bajo_stock:
                 print(f"Producto: {p['nombre']}")
-                print(f"Stock actual: {p['cantidad_en_stock']}")
-                print(f"Nivel de alerta: {p['nivel_alerta']}")
-                print(f"Déficit: {p['nivel_alerta'] - p['cantidad_en_stock']}")
-                print("-" * 60)
+                print(f"Categoría: {p['categoria_nombre']}")
+                print(f"Stock actual: {p['cantidad_en_stock']} unidades")
+                print(f"Nivel de alerta: {p['nivel_alerta']} unidades")
+                print(f"Unidades faltantes: {p['unidades_faltantes']} unidades")
+                print(f"Valor faltante: ${p['unidades_faltantes'] * p['precio']:,.0f}")
+                print("\nMovimientos último mes:")
+                print(f"- Entradas: {p['entradas_ultimo_mes']} unidades")
+                print(f"- Salidas: {p['salidas_ultimo_mes']} unidades")
+                print(f"- Rotación mensual: {p['rotacion_mensual']} unidades")
+                
+                if p['dias_estimados'] is not None:
+                    print(f"\nDías estimados antes de agotamiento: {p['dias_estimados']} días")
+                else:
+                    print("\nNo hay suficientes datos de salidas para estimar días de agotamiento")
+                
+                print("=" * 100)
+            
+            # Mostrar resumen
+            total_productos = len(productos_bajo_stock)
+            total_valor_faltante = sum(p['unidades_faltantes'] * p['precio'] for p in productos_bajo_stock)
+            
+            print("\nResumen:")
+            print(f"- Total de productos con stock bajo: {total_productos}")
+            print(f"- Valor total de reposición necesaria: ${total_valor_faltante:,.0f}")
             
             return True
         except Exception as e:

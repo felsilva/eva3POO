@@ -159,17 +159,53 @@ class ProductoDAO:
                 conn.close()
 
     def verificar_stock_bajo(self):
+        """Verifica productos con stock bajo según niveles de alerta configurados."""
         conn = None
         try:
             conn = self.conexion.get_connection()
             cursor = conn.cursor(pymysql.cursors.DictCursor)
-            sql = """SELECT p.*, c.nombre as categoria_nombre, a.nivel_alerta 
-                     FROM productos p 
-                     LEFT JOIN categorias_productos c ON p.categoria_id = c.id
-                     JOIN alertas_inventario a ON p.id = a.producto_id 
-                     WHERE p.cantidad_en_stock <= a.nivel_alerta"""
+            sql = """
+                SELECT 
+                    p.id,
+                    p.nombre,
+                    p.descripcion,
+                    p.cantidad_en_stock,
+                    p.precio,
+                    cp.nombre as categoria_nombre,
+                    a.nivel_alerta,
+                    (a.nivel_alerta - p.cantidad_en_stock) as unidades_faltantes,
+                    COALESCE(
+                        (SELECT SUM(cantidad) 
+                         FROM entradas_inventario 
+                         WHERE producto_id = p.id 
+                         AND fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                        ), 0
+                    ) as entradas_ultimo_mes,
+                    COALESCE(
+                        (SELECT SUM(cantidad) 
+                         FROM salidas_inventario 
+                         WHERE producto_id = p.id 
+                         AND fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                        ), 0
+                    ) as salidas_ultimo_mes
+                FROM productos p
+                LEFT JOIN categorias_productos cp ON p.categoria_id = cp.id
+                JOIN alertas_inventario a ON p.id = a.producto_id
+                WHERE p.cantidad_en_stock <= a.nivel_alerta
+                ORDER BY (a.nivel_alerta - p.cantidad_en_stock) DESC, p.nombre ASC
+            """
             cursor.execute(sql)
-            return cursor.fetchall()
+            resultados = cursor.fetchall()
+            
+            # Agregar información adicional a cada resultado
+            for resultado in resultados:
+                resultado['rotacion_mensual'] = resultado['salidas_ultimo_mes']
+                resultado['dias_estimados'] = (
+                    round(resultado['cantidad_en_stock'] / (resultado['salidas_ultimo_mes'] / 30))
+                    if resultado['salidas_ultimo_mes'] > 0 else None
+                )
+            
+            return resultados
         except pymysql.Error as error:
             print(f"Error al verificar stock bajo: {error}")
             raise
@@ -409,12 +445,16 @@ class ProductoDAO:
                 conn.close()
 
     def listar_categorias(self):
-        """Lista todas las categorías disponibles."""
+        """Lista todas las categorías disponibles en orden ascendente (A-Z)."""
         conn = None
         try:
             conn = self.conexion.get_connection()
             cursor = conn.cursor(pymysql.cursors.DictCursor)
-            cursor.execute("SELECT id, nombre FROM categorias_productos ORDER BY nombre")
+            cursor.execute("""
+                SELECT id, nombre 
+                FROM categorias_productos 
+                ORDER BY nombre ASC
+            """)
             return cursor.fetchall()
         except pymysql.Error as error:
             print(f"Error al listar categorías: {error}")

@@ -449,15 +449,7 @@ def main():
                             print("Salida registrada exitosamente!")
                         
                         elif opcion == "4":
-                            productos_bajo_stock = producto_dao.verificar_stock_bajo()
-                            if not productos_bajo_stock:
-                                print("\nNo hay productos con stock bajo.")
-                                continue
-                            print("\n=== PRODUCTOS CON STOCK BAJO ===")
-                            print("Producto | Stock Actual | Nivel de Alerta")
-                            print("-" * 50)
-                            for p in productos_bajo_stock:
-                                print(f"{p['nombre'][:20]:20} | {p['cantidad_en_stock']:12d} | {p['nivel_alerta']:14d}")
+                            reporte_service.generar_reporte_alertas()
                         
                         elif opcion == "5":
                             menu_reportes(reporte_service)

@@ -208,3 +208,54 @@ UNION ALL
 SELECT 'Historial Precios', COUNT(*) FROM historial_precios
 UNION ALL
 SELECT 'Alertas Inventario', COUNT(*) FROM alertas_inventario;
+
+-- Insertar movimientos de inventario para los últimos 3 meses
+-- Entradas de inventario recientes
+INSERT INTO entradas_inventario (producto_id, cantidad, fecha, usuario_id, proveedor_id, precio_unitario) VALUES
+-- MacBook Pro 16 (ID: 1)
+(1, 20, DATE_SUB(NOW(), INTERVAL 2 MONTH), 1, 1, 2499990),
+(1, 15, DATE_SUB(NOW(), INTERVAL 1 MONTH), 1, 1, 2499990),
+(1, 10, DATE_SUB(NOW(), INTERVAL 15 DAY), 1, 1, 2499990),
+
+-- iPhone 15 Pro Max (ID: 6)
+(6, 30, DATE_SUB(NOW(), INTERVAL 2 MONTH), 1, 2, 1899990),
+(6, 25, DATE_SUB(NOW(), INTERVAL 1 MONTH), 1, 2, 1899990),
+(6, 20, DATE_SUB(NOW(), INTERVAL 10 DAY), 1, 2, 1899990),
+
+-- Samsung S24 Ultra (ID: 7)
+(7, 25, DATE_SUB(NOW(), INTERVAL 2 MONTH), 1, 2, 1599990),
+(7, 20, DATE_SUB(NOW(), INTERVAL 1 MONTH), 1, 2, 1599990),
+(7, 15, DATE_SUB(NOW(), INTERVAL 5 DAY), 1, 2, 1599990);
+
+-- Salidas de inventario recientes
+INSERT INTO salidas_inventario (producto_id, cantidad, fecha, usuario_id) VALUES
+-- MacBook Pro 16 (ID: 1)
+(1, 15, DATE_SUB(NOW(), INTERVAL 45 DAY), 1),
+(1, 12, DATE_SUB(NOW(), INTERVAL 30 DAY), 1),
+(1, 8, DATE_SUB(NOW(), INTERVAL 15 DAY), 1),
+(1, 5, DATE_SUB(NOW(), INTERVAL 5 DAY), 1),
+
+-- iPhone 15 Pro Max (ID: 6)
+(6, 20, DATE_SUB(NOW(), INTERVAL 40 DAY), 1),
+(6, 18, DATE_SUB(NOW(), INTERVAL 25 DAY), 1),
+(6, 15, DATE_SUB(NOW(), INTERVAL 10 DAY), 1),
+(6, 10, DATE_SUB(NOW(), INTERVAL 2 DAY), 1),
+
+-- Samsung S24 Ultra (ID: 7)
+(7, 15, DATE_SUB(NOW(), INTERVAL 35 DAY), 1),
+(7, 12, DATE_SUB(NOW(), INTERVAL 20 DAY), 1),
+(7, 10, DATE_SUB(NOW(), INTERVAL 8 DAY), 1),
+(7, 8, DATE_SUB(NOW(), INTERVAL 1 DAY), 1);
+
+-- Configurar alertas de inventario
+INSERT INTO alertas_inventario (producto_id, nivel_alerta, fecha) VALUES
+(1, 15, NOW()),  -- MacBook Pro 16
+(6, 20, NOW()),  -- iPhone 15 Pro Max
+(7, 18, NOW()),  -- Samsung S24 Ultra
+(11, 12, NOW()), -- iPad Pro
+(16, 25, NOW()), -- Sony WH-1000XM5
+(21, 15, NOW()), -- PS5 Digital
+(26, 10, NOW()), -- AMD Ryzen 9
+(31, 8, NOW()),  -- LG 27GP950
+(36, 20, NOW()), -- Samsung 990 Pro
+(41, 10, NOW()); -- ASUS ROG Rapture
