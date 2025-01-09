@@ -1,0 +1,30 @@
+services:
+  db:
+    platform: linux/amd64
+    image: mysql:8.0.26
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: santa_clara_mantenedor_db
+      MYSQL_ROOT_PASSWORD: Inacap@2024.
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdata:/var/lib/mysql/
+    networks:
+      - app-network
+  pma: 
+    image: phpmyadmin/phpmyadmin  # Usa la variable o la imagen por defecto
+    ports:
+      - "8080:80"
+    networks:
+      - app-network
+    environment:
+      MYSQL_ROOT_PASSWORD: Inacap@2024.
+      PMA_HOST: db
+networks:
+  app-network:
+    driver: bridge
+volumes:
+  dbdata:
+    driver: local

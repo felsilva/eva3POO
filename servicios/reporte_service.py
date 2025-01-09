@@ -13,66 +13,97 @@ class ReporteService:
     def _formatear_tabla(self, datos, formato='normal'):
         """Formatea los datos en una tabla con bordes."""
         if not datos:
-            return "No hay datos para mostrar."
+            return "No hay datos para mostrar en el período seleccionado."
 
         # Definir anchos de columnas
         anchos = {
             'nombre': 25,
+            'categoria': 15,
             'entradas': 10,
             'salidas': 10,
             'stock': 10,
-            'valor': 12
+            'precio': 15,
+            'valor_mov': 20,
+            'valor': 20
         }
 
         # Crear líneas de la tabla
-        linea_superior = "+" + "-"*(anchos['nombre']+2) + "+" + \
-                        "-"*(anchos['entradas']+2) + "+" + \
-                        "-"*(anchos['salidas']+2) + "+" + \
-                        "-"*(anchos['stock']+2) + "+" + \
-                        "-"*(anchos['valor']+2) + "+"
+        linea = "+" + "-"*(anchos['nombre']+2) + "+" + \
+                "-"*(anchos['categoria']+2) + "+" + \
+                "-"*(anchos['entradas']+2) + "+" + \
+                "-"*(anchos['salidas']+2) + "+" + \
+                "-"*(anchos['stock']+2) + "+" + \
+                "-"*(anchos['precio']+2) + "+" + \
+                "-"*(anchos['valor_mov']+2) + "+" + \
+                "-"*(anchos['valor']+2) + "+"
 
         # Crear encabezados
-        headers = ["Producto", "Entradas", "Salidas", "Stock", "Valor Total"]
+        headers = ["Producto", "Categoría", "Entradas", "Salidas", "Stock", "Precio Unit.", "Valor Movs.", "Valor Total"]
         header_row = "|" + headers[0].center(anchos['nombre']+2) + "|" + \
-                    headers[1].center(anchos['entradas']+2) + "|" + \
-                    headers[2].center(anchos['salidas']+2) + "|" + \
-                    headers[3].center(anchos['stock']+2) + "|" + \
-                    headers[4].center(anchos['valor']+2) + "|"
+                    headers[1].center(anchos['categoria']+2) + "|" + \
+                    headers[2].center(anchos['entradas']+2) + "|" + \
+                    headers[3].center(anchos['salidas']+2) + "|" + \
+                    headers[4].center(anchos['stock']+2) + "|" + \
+                    headers[5].center(anchos['precio']+2) + "|" + \
+                    headers[6].center(anchos['valor_mov']+2) + "|" + \
+                    headers[7].center(anchos['valor']+2) + "|"
 
         # Formatear filas
         rows = []
         total_valor = 0
+        total_movimientos = 0
         for item in datos:
             nombre = item['nombre'][:anchos['nombre']]
-            entradas = str(item['entradas'] or 0)
-            salidas = str(item['salidas'] or 0)
-            stock = str(item['stock_actual'])
-            valor = item['stock_actual'] * item.get('precio', 0)
-            total_valor += valor
+            categoria = (item['categoria'] or 'Sin categoría')[:anchos['categoria']]
+            entradas = str(item['entradas'])
+            salidas = str(item['salidas'])
+            stock = int(item['stock_actual'])
+            precio = float(item['precio_actual'])
+            valor_movimientos = float(item['valor_entradas']) + float(item['valor_salidas'])
+            # Calcular el valor total como stock * precio
+            valor_total = stock * precio
+            
+            total_valor += valor_total
+            total_movimientos += valor_movimientos
             
             row = "|" + nombre.ljust(anchos['nombre']+2) + "|" + \
+                  categoria.center(anchos['categoria']+2) + "|" + \
                   entradas.center(anchos['entradas']+2) + "|" + \
                   salidas.center(anchos['salidas']+2) + "|" + \
-                  stock.center(anchos['stock']+2) + "|" + \
-                  f"${valor:,.2f}".rjust(anchos['valor']+2) + "|"
+                  str(stock).center(anchos['stock']+2) + "|" + \
+                  f"${precio:,.0f}".rjust(anchos['precio']+2) + "|" + \
+                  f"${valor_movimientos:,.0f}".rjust(anchos['valor_mov']+2) + "|" + \
+                  f"${valor_total:,.0f}".rjust(anchos['valor']+2) + "|"
             rows.append(row)
 
         # Agregar fila de totales
-        total_row = "|" + "TOTAL".ljust(anchos['nombre']+2) + "|" + \
+        total_row = "|" + "TOTAL INVENTARIO".ljust(anchos['nombre']+2) + "|" + \
+                   "".center(anchos['categoria']+2) + "|" + \
                    "".center(anchos['entradas']+2) + "|" + \
                    "".center(anchos['salidas']+2) + "|" + \
                    "".center(anchos['stock']+2) + "|" + \
-                   f"${total_valor:,.2f}".rjust(anchos['valor']+2) + "|"
+                   "".center(anchos['precio']+2) + "|" + \
+                   f"${total_movimientos:,.0f}".rjust(anchos['valor_mov']+2) + "|" + \
+                   f"${total_valor:,.0f}".rjust(anchos['valor']+2) + "|"
+
+        # Agregar resumen
+        resumen = [
+            "",
+            "Resumen del reporte:",
+            f"- Valor total de movimientos: ${total_movimientos:,.0f}",
+            f"- Valor total del inventario: ${total_valor:,.0f}"
+        ]
 
         # Unir todas las partes
         tabla = [
-            linea_superior,
+            linea,
             header_row,
-            linea_superior,
+            linea,
             *rows,
-            linea_superior,
+            linea,
             total_row,
-            linea_superior
+            linea,
+            *resumen
         ]
 
         return "\n".join(tabla)
@@ -140,4 +171,17 @@ class ReporteService:
             return True
         except Exception as e:
             print(f"Error al generar reporte de alertas: {e}")
-            return False 
+            return False
+
+    def verificar_fechas_disponibles(self):
+        """Verifica las fechas disponibles para reportes."""
+        try:
+            fechas = self.producto_dao.verificar_fechas_movimientos()
+            print("\n=== FECHAS DISPONIBLES PARA REPORTES ===")
+            print(f"Primera fecha de movimiento: {fechas['primera_fecha']}")
+            print(f"Última fecha de movimiento: {fechas['ultima_fecha']}")
+            print("\nUse estas fechas como referencia para generar sus reportes.")
+            return fechas
+        except Exception as e:
+            print(f"Error al verificar fechas disponibles: {e}")
+            return None 

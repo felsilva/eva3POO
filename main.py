@@ -18,6 +18,7 @@ from DAO.producto_dao import ProductoDAO
 from DAO.usuario_dao import UsuarioDAO
 from DTO.producto_dto import ProductoDTO
 from DTO.usuario_dto import UsuarioDTO
+from servicios.producto_service import ProductoService
 import getpass
 import re
 
@@ -163,7 +164,7 @@ def cambiar_password(usuario_dao, usuario_actual):
         print(f"Error al cambiar la contraseña: {str(e)}")
         return False
 
-def menu_productos(producto_dao):
+def menu_productos(producto_dao, producto_service):
     """Gestiona las operaciones relacionadas con productos."""
     while True:
         try:
@@ -185,69 +186,132 @@ def menu_productos(producto_dao):
                 print("-" * 50)
                 for p in productos:
                     print(f"{p.id:2d} | {p.nombre[:20]:20} | {p.cantidad_en_stock:5d} | ${p.precio:8.2f}")
-                
+            
             elif opcion == "2":
+                print("\n=== AGREGAR NUEVO PRODUCTO ===")
                 nombre = input("Nombre del producto: ").strip()
                 if not nombre:
                     print("El nombre es obligatorio.")
                     continue
-                descripcion = input("Descripción: ")
-                precio = validar_entrada_numerica("Precio: ")
-                if precio is None or precio <= 0:
-                    print("El precio debe ser mayor que 0.")
-                    continue
-                stock = validar_entrada_numerica("Stock inicial: ", 'int')
-                if stock is None or stock < 0:
-                    print("El stock no puede ser negativo.")
+                
+                descripcion = input("Descripción: ").strip()
+                
+                precio = validar_entrada_numerica("Precio: ", 'float')
+                if precio is None or precio < 0:
+                    print("El precio debe ser un número válido mayor o igual a 0.")
                     continue
                 
-                producto_dto = ProductoDTO(
+                stock = validar_entrada_numerica("Stock inicial: ", 'int')
+                if stock is None or stock < 0:
+                    print("El stock debe ser un número válido mayor o igual a 0.")
+                    continue
+                
+                # Mostrar categorías disponibles
+                print("\nCategorías disponibles:")
+                categorias = producto_dao.listar_categorias()
+                for cat in categorias:
+                    print(f"{cat['id']}. {cat['nombre']}")
+                
+                categoria_id = validar_entrada_numerica("ID de la categoría: ", 'int')
+                if categoria_id is None:
+                    print("Debe seleccionar una categoría válida.")
+                    continue
+                
+                nuevo_producto = ProductoDTO(
                     nombre=nombre,
                     descripcion=descripcion,
                     precio=precio,
-                    cantidad_en_stock=stock
+                    cantidad_en_stock=stock,
+                    categoria_id=categoria_id
                 )
-                producto_dao.crear(producto_dto)
-                print("Producto creado exitosamente!")
-            
+                
+                try:
+                    producto_id = producto_dao.crear(nuevo_producto)
+                    print(f"\nProducto creado exitosamente con ID: {producto_id}")
+                except Exception as e:
+                    print(f"Error al crear el producto: {str(e)}")
+
             elif opcion == "3":
-                id_producto = validar_entrada_numerica("ID del producto a actualizar: ", 'int')
+                print("\n=== ACTUALIZAR PRODUCTO ===")
+                
+                # Primero mostramos la lista de productos
+                productos = producto_dao.listar_todos()
+                if not productos:
+                    print("No hay productos registrados.")
+                    continue
+                print("\nProductos disponibles:")
+                print("ID | Nombre | Stock | Precio")
+                print("-" * 50)
+                for p in productos:
+                    print(f"{p.id:2d} | {p.nombre[:20]:20} | {p.cantidad_en_stock:5d} | ${p.precio:8.2f}")
+                
+                # Seleccionar producto a actualizar
+                id_producto = validar_entrada_numerica("\nID del producto a actualizar: ", 'int')
                 if id_producto is None:
                     continue
-                    
+                
                 producto = producto_dao.obtener_por_id(id_producto)
                 if not producto:
                     print("Producto no encontrado.")
                     continue
-                    
+                
                 print(f"\nActualizando producto: {producto.nombre}")
-                print("(Presione Enter para mantener el valor actual)")
+                print("Deje en blanco para mantener el valor actual")
                 
+                # Nombre
                 nombre = input(f"Nombre [{producto.nombre}]: ").strip()
-                descripcion = input(f"Descripción [{producto.descripcion or 'Sin descripción'}]: ").strip()
-                precio_str = input(f"Precio [{producto.precio}]: ").strip()
+                if not nombre:
+                    nombre = producto.nombre
                 
-                if nombre:
-                    producto.nombre = nombre
-                if descripcion:
-                    producto.descripcion = descripcion
+                # Descripción
+                descripcion = input(f"Descripción [{producto.descripcion or 'Sin descripción'}]: ").strip()
+                if not descripcion:
+                    descripcion = producto.descripcion
+                
+                # Precio
+                precio_str = input(f"Precio [${producto.precio:,.2f}]: ").strip()
                 if precio_str:
                     try:
                         precio = float(precio_str)
-                        if precio <= 0:
-                            print("El precio debe ser mayor que 0.")
+                        if precio < 0:
+                            print("El precio no puede ser negativo.")
                             continue
-                        producto.precio = precio
                     except ValueError:
                         print("Precio inválido.")
                         continue
+                else:
+                    precio = producto.precio
+                
+                # Stock
+                stock_str = input(f"Stock [{producto.cantidad_en_stock}]: ").strip()
+                if stock_str:
+                    try:
+                        stock = int(stock_str)
+                        if stock < 0:
+                            print("El stock no puede ser negativo.")
+                            continue
+                    except ValueError:
+                        print("Stock inválido.")
+                        continue
+                else:
+                    stock = producto.cantidad_en_stock
+                
+                # Actualizar el producto
+                producto_actualizado = ProductoDTO(
+                    id=id_producto,
+                    nombre=nombre,
+                    descripcion=descripcion,
+                    precio=precio,
+                    cantidad_en_stock=stock,
+                    categoria_id=producto.categoria_id
+                )
                 
                 try:
-                    producto_dao.actualizar(producto)
-                    print("Producto actualizado exitosamente!")
+                    if producto_dao.actualizar(producto_actualizado):
+                        print("\nProducto actualizado exitosamente!")
                 except Exception as e:
                     print(f"Error al actualizar el producto: {str(e)}")
-
+                
             elif opcion == "4":
                 id_producto = validar_entrada_numerica("ID del producto a eliminar: ", 'int')
                 if id_producto is None:
@@ -262,18 +326,17 @@ def menu_productos(producto_dao):
                 print(f"Stock actual: {producto.cantidad_en_stock}")
                 print(f"Precio actual: ${producto.precio:,.2f}")
                 
-                confirmacion = input("\n¿Está seguro que desea eliminar este producto? (s/n): ").strip().lower()
-                if confirmacion != 's':
-                    print("Operación cancelada.")
-                    continue
-                
-                try:
-                    producto_dao.eliminar(id_producto)
-                    print("Producto eliminado exitosamente!")
-                except ValueError as e:
-                    print(f"Error: {str(e)}")
-                except Exception as e:
-                    print(f"Error al eliminar el producto: {str(e)}")
+                # Usar el nuevo método de eliminación con confirmación
+                exito, mensaje = producto_service.eliminar_producto_con_movimientos(id_producto)
+                if not exito:
+                    confirmacion = input(f"{mensaje} (s/n): ").strip().lower()
+                    if confirmacion == 's':
+                        exito, mensaje = producto_service.eliminar_producto_con_movimientos(id_producto, True)
+                        print(mensaje)
+                    else:
+                        print("Operación cancelada.")
+                else:
+                    print(mensaje)
                 
             elif opcion == "5":
                 break
@@ -291,11 +354,15 @@ def menu_reportes(reporte_service):
             print("\n=== GENERACIÓN DE REPORTES ===")
             print("1. Simular Reporte Excel")
             print("2. Simular Reporte PDF")
-            print("3. Volver al menú principal")
+            print("3. Verificar Fechas Disponibles")
+            print("4. Volver al menú principal")
             opcion = input("Seleccione una opción: ")
 
             if opcion in ["1", "2"]:
-                fecha_inicio = input("Fecha inicio (YYYY-MM-DD): ")
+                # Primero mostramos las fechas disponibles
+                reporte_service.verificar_fechas_disponibles()
+                
+                fecha_inicio = input("\nFecha inicio (YYYY-MM-DD): ")
                 fecha_fin = input("Fecha fin (YYYY-MM-DD): ")
                 
                 fecha_inicio = validar_fecha(fecha_inicio)
@@ -303,7 +370,7 @@ def menu_reportes(reporte_service):
                 
                 if datetime.strptime(fecha_inicio, '%Y-%m-%d') > datetime.strptime(fecha_fin, '%Y-%m-%d'):
                     print("La fecha de inicio debe ser anterior a la fecha fin.")
-                continue
+                    continue
                 
                 if opcion == "1":
                     reporte_service.simular_reporte_excel(fecha_inicio, fecha_fin)
@@ -311,6 +378,9 @@ def menu_reportes(reporte_service):
                     reporte_service.simular_reporte_pdf(fecha_inicio, fecha_fin)
             
             elif opcion == "3":
+                reporte_service.verificar_fechas_disponibles()
+            
+            elif opcion == "4":
                 break
                 
         except ValueError as ve:
@@ -318,11 +388,30 @@ def menu_reportes(reporte_service):
         except Exception as e:
             print(f"Error inesperado: {str(e)}")
 
+def eliminar_producto(producto_service):
+    id_producto = input("Ingrese el ID del producto a eliminar: ")
+    try:
+        # Primer intento de eliminación
+        exito, mensaje = producto_service.eliminar_producto_con_movimientos(id_producto)
+        if not exito:
+            # Si tiene movimientos, preguntamos al usuario
+            confirmacion = input(f"{mensaje} (s/n): ")
+            if confirmacion.lower() == 's':
+                exito, mensaje = producto_service.eliminar_producto_con_movimientos(id_producto, True)
+                print(mensaje)
+            else:
+                print("Operación cancelada")
+        else:
+            print(mensaje)
+    except Exception as e:
+        print(f"Error: {str(e)}")
+
 def main():
     """Función principal que inicia el sistema."""
     usuario_dao = UsuarioDAO()
     producto_dao = ProductoDAO()
     reporte_service = ReporteService()
+    producto_service = ProductoService(producto_dao)
     
     while True:
         opcion = mostrar_menu_autenticacion()
@@ -330,13 +419,12 @@ def main():
         if opcion == "1":
             usuario_actual = iniciar_sesion(usuario_dao)
             if usuario_actual:
-                # Menú principal
                 while True:
                     try:
                         opcion = mostrar_menu()
                         
                         if opcion == "1":
-                            menu_productos(producto_dao)
+                            menu_productos(producto_dao, producto_service)
                         
                         elif opcion == "2":
                             id_producto = validar_entrada_numerica("ID del producto: ", 'int')

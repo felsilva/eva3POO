@@ -215,18 +215,48 @@ class ProductoDAO:
             conn = self.conexion.get_connection()
             cursor = conn.cursor(pymysql.cursors.DictCursor)
             sql = """
-                SELECT p.nombre, c.nombre as categoria, p.descripcion,
-                       (SELECT SUM(cantidad) FROM entradas_inventario 
-                        WHERE producto_id = p.id AND fecha BETWEEN %s AND %s) as entradas,
-                       (SELECT SUM(cantidad) FROM salidas_inventario 
-                        WHERE producto_id = p.id AND fecha BETWEEN %s AND %s) as salidas,
-                       p.cantidad_en_stock as stock_actual,
-                       p.precio as precio_actual
+                SELECT 
+                    p.nombre,
+                    p.descripcion,
+                    p.cantidad_en_stock as stock_actual,
+                    p.precio as precio_actual,
+                    COALESCE(e.total_entradas, 0) as entradas,
+                    COALESCE(s.total_salidas, 0) as salidas,
+                    cp.nombre as categoria,
+                    COALESCE(e.total_entradas * p.precio, 0) as valor_entradas,
+                    COALESCE(s.total_salidas * p.precio, 0) as valor_salidas,
+                    (p.cantidad_en_stock * p.precio) as valor_total_inventario
                 FROM productos p
-                LEFT JOIN categorias_productos c ON p.categoria_id = c.id
+                LEFT JOIN categorias_productos cp ON p.categoria_id = cp.id
+                LEFT JOIN (
+                    SELECT producto_id, SUM(cantidad) as total_entradas
+                    FROM entradas_inventario
+                    WHERE DATE(fecha) BETWEEN DATE(%s) AND DATE(%s)
+                    GROUP BY producto_id
+                ) e ON p.id = e.producto_id
+                LEFT JOIN (
+                    SELECT producto_id, SUM(cantidad) as total_salidas
+                    FROM salidas_inventario
+                    WHERE DATE(fecha) BETWEEN DATE(%s) AND DATE(%s)
+                    GROUP BY producto_id
+                ) s ON p.id = s.producto_id
+                WHERE e.total_entradas > 0 OR s.total_salidas > 0
+                ORDER BY p.nombre
             """
             cursor.execute(sql, (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
-            return cursor.fetchall()
+            resultados = cursor.fetchall()
+            
+            # Asegurar que los valores numéricos sean float y calcular totales
+            for resultado in resultados:
+                resultado['precio_actual'] = float(resultado['precio_actual'])
+                resultado['stock_actual'] = int(resultado['stock_actual'])
+                resultado['entradas'] = int(resultado['entradas'])
+                resultado['salidas'] = int(resultado['salidas'])
+                resultado['valor_entradas'] = float(resultado['valor_entradas'])
+                resultado['valor_salidas'] = float(resultado['valor_salidas'])
+                resultado['valor_total'] = float(resultado['valor_total_inventario'])
+            
+            return resultados
         except pymysql.Error as error:
             print(f"Error al generar reporte: {error}")
             raise
@@ -235,40 +265,159 @@ class ProductoDAO:
                 cursor.close()
                 conn.close()
 
-    def eliminar(self, id_producto):
-        """Elimina un producto del sistema."""
+    def tiene_movimientos(self, producto_id):
+        conn = None
+        try:
+            conn = self.conexion.get_connection()
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+            
+            # Verificar entradas
+            cursor.execute("""
+                SELECT 
+                    (SELECT COUNT(*) FROM entradas_inventario WHERE producto_id = %s) +
+                    (SELECT COUNT(*) FROM salidas_inventario WHERE producto_id = %s) +
+                    (SELECT COUNT(*) FROM detalles_pedidos WHERE producto_id = %s) as total
+            """, (producto_id, producto_id, producto_id))
+            
+            resultado = cursor.fetchone()
+            return resultado['total'] > 0
+            
+        except pymysql.Error as error:
+            print(f"Error al verificar movimientos: {error}")
+            raise
+        finally:
+            if conn and conn.open:
+                cursor.close()
+                conn.close()
+
+    def eliminar_movimientos(self, producto_id):
         conn = None
         try:
             conn = self.conexion.get_connection()
             cursor = conn.cursor()
             
-            # Verificar si el producto existe
-            cursor.execute("SELECT id FROM productos WHERE id = %s", (id_producto,))
-            if not cursor.fetchone():
-                raise ValueError("Producto no encontrado")
-            
-            # Verificar si hay movimientos asociados
+            # Primero eliminamos el historial de precios
             cursor.execute("""
-                SELECT COUNT(*) as total 
-                FROM (
-                    SELECT producto_id FROM entradas_inventario WHERE producto_id = %s
-                    UNION ALL
-                    SELECT producto_id FROM salidas_inventario WHERE producto_id = %s
-                ) as movimientos
-            """, (id_producto, id_producto))
+                DELETE FROM historial_precios 
+                WHERE producto_id = %s
+            """, (producto_id,))
             
-            if cursor.fetchone()['total'] > 0:
-                raise ValueError("No se puede eliminar el producto porque tiene movimientos asociados")
+            # Luego eliminamos las alertas de inventario
+            cursor.execute("""
+                DELETE FROM alertas_inventario 
+                WHERE producto_id = %s
+            """, (producto_id,))
             
-            # Eliminar el producto
-            cursor.execute("DELETE FROM productos WHERE id = %s", (id_producto,))
+            # Eliminamos los detalles de pedidos
+            cursor.execute("""
+                DELETE FROM detalles_pedidos 
+                WHERE producto_id = %s
+            """, (producto_id,))
+            
+            # Eliminamos las entradas
+            cursor.execute("""
+                DELETE FROM entradas_inventario 
+                WHERE producto_id = %s
+            """, (producto_id,))
+            
+            # Eliminamos las salidas
+            cursor.execute("""
+                DELETE FROM salidas_inventario 
+                WHERE producto_id = %s
+            """, (producto_id,))
+            
+            conn.commit()
+            return True
+        except pymysql.Error as error:
+            if conn:
+                conn.rollback()
+            print(f"Error al eliminar movimientos: {error}")
+            raise
+        finally:
+            if conn and conn.open:
+                cursor.close()
+                conn.close()
+
+    def eliminar(self, producto_id):
+        conn = None
+        try:
+            conn = self.conexion.get_connection()
+            cursor = conn.cursor()
+            
+            # Primero verificamos si el producto existe
+            cursor.execute("SELECT id FROM productos WHERE id = %s", (producto_id,))
+            if not cursor.fetchone():
+                raise Exception("El producto no existe")
+            
+            # Eliminamos primero todos los registros relacionados
+            self.eliminar_movimientos(producto_id)
+            
+            # Finalmente eliminamos el producto
+            cursor.execute("DELETE FROM productos WHERE id = %s", (producto_id,))
             conn.commit()
             return True
             
         except pymysql.Error as error:
             if conn:
                 conn.rollback()
-            print(f"Error al eliminar producto: {error}")
+            print(f"Error en la base de datos: {error}")
+            raise Exception(f"Error al eliminar el producto: {str(error)}")
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise e
+        finally:
+            if conn and conn.open:
+                cursor.close()
+                conn.close()
+
+    def verificar_fechas_movimientos(self):
+        conn = None
+        try:
+            conn = self.conexion.get_connection()
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    MIN(fecha) as primera_fecha,
+                    MAX(fecha) as ultima_fecha
+                FROM (
+                    SELECT fecha FROM entradas_inventario
+                    UNION ALL
+                    SELECT fecha FROM salidas_inventario
+                ) as todas_fechas
+                WHERE fecha IS NOT NULL
+            """)
+            
+            resultado = cursor.fetchone()
+            if resultado['primera_fecha'] is None or resultado['ultima_fecha'] is None:
+                # Si no hay movimientos, usar el último mes
+                from datetime import datetime, timedelta
+                fecha_actual = datetime.now()
+                resultado = {
+                    'primera_fecha': fecha_actual - timedelta(days=30),
+                    'ultima_fecha': fecha_actual
+                }
+            return resultado
+            
+        except pymysql.Error as error:
+            print(f"Error al verificar fechas: {error}")
+            raise
+        finally:
+            if conn and conn.open:
+                cursor.close()
+                conn.close()
+
+    def listar_categorias(self):
+        """Lista todas las categorías disponibles."""
+        conn = None
+        try:
+            conn = self.conexion.get_connection()
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+            cursor.execute("SELECT id, nombre FROM categorias_productos ORDER BY nombre")
+            return cursor.fetchall()
+        except pymysql.Error as error:
+            print(f"Error al listar categorías: {error}")
             raise
         finally:
             if conn and conn.open:
